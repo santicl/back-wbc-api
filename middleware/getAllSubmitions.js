@@ -12,7 +12,42 @@ const getSubmissions = async (formId, limit = 100) => {
         try {
             const response = await axios.get(url, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.API_KEY_PALMARITO}`,
+                    'Authorization': `Bearer ${process.env.API_KEY_SKY_GROUP_WALA}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const submissions = response.data.submissions || [];
+
+            allSubmissions = allSubmissions.concat(submissions);
+
+            if (submissions.length < limit) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+
+        } catch (error) {
+            console.error(`Error obteniendo submissions del formId ${formId} página ${page}:`, error.message);
+            throw error;
+        }
+    }
+
+    return allSubmissions;
+};
+
+const getSubmissionsByAccount = async (formId, limit = 100) => {
+    let page = 1;
+    let allSubmissions = [];
+    let hasMore = true;
+
+    while (hasMore) {
+        const url = `https://rest.gohighlevel.com/v1/forms/submissions?page=${page}&limit=${limit}&formId=${formId}`;
+
+        try {
+            const response = await axios.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.API_KEY_WALA_ACCOUNT}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -39,6 +74,8 @@ const getSubmissions = async (formId, limit = 100) => {
 const getFormAllByIdSubmissions = async (req, res, next) => {
     const formId = process.env.FORM_ID; // Cocolux
     const formSecondId = process.env.FORM_SECOND_ID; // Premium
+    const formIdWala = process.env.FORM_THREE_ID;
+    const formIdAgency = process.env.FORM_AGENCY
     //const formThreeId = process.env.FORM_THREE_ID; // Traditional
     const limit = 100;
     
@@ -51,13 +88,15 @@ const getFormAllByIdSubmissions = async (req, res, next) => {
 
     try {
         // Obtener todos los submissions de ambos formularios
-        const [form1Submissions, form2Submissions] = await Promise.all([
+        const [form1Submissions, form2Submissions, form3Submissions, form4Submissions] = await Promise.all([
             getSubmissions(formId, limit),
             getSubmissions(formSecondId, limit),
+            getSubmissionsByAccount(formIdWala, limit),
+            getSubmissionsByAccount(formIdAgency, limit)
         ]);
 
         // Combinar todas las submissions
-        req.body.submissions = [...form1Submissions, ...form2Submissions];
+        req.body.submissions = [...form1Submissions, ...form2Submissions, ...form3Submissions, ...form4Submissions];
         //console.log(req.body.submissions, "SUBMITIONS")
         next();
 
